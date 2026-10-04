@@ -86,13 +86,19 @@ public static class EditorXamlContractTests
 
         // And every literal the two scripts pass to their find helpers appears somewhere in the XAML or the sources (names built from data are skipped).
         var literals = new HashSet<string>(StringComparer.Ordinal);
-        foreach (string script in new[] { "live-ui-agents.ps1", "acceptance.ps1" })
+        // The scripts are owner-run and git-ignored, so a fresh clone does not have them: compare only when both are present.
+        string[] scripts = { "live-ui-agents.ps1", "acceptance.ps1" };
+        bool haveScripts = scripts.All(s => File.Exists(Path.Combine(Root(), "tools", s)));
+        if (!haveScripts)
+            T.True("owner-run UI scripts not in this checkout: comparison skipped", true);
+        foreach (string script in haveScripts ? scripts : Array.Empty<string>())
         {
             string text = File.ReadAllText(Path.Combine(Root(), "tools", script));
             foreach (Match m in Regex.Matches(text, @"\b(?:ById|ByName|Ui-Find|Ui-FindId|Ui-Need)\s+\$\w+\s+'([^']+)'"))
                 literals.Add(m.Groups[1].Value);
         }
-        T.True("the scripts look things up (" + literals.Count + ")", literals.Count >= 20);
+        if (haveScripts)
+            T.True("the scripts look things up (" + literals.Count + ")", literals.Count >= 20);
         foreach (string lit in literals)
             T.True("'" + lit + "' is declared in the XAML or the sources", xaml.Contains("\"" + lit + "\"", StringComparison.Ordinal) || code.Contains("\"" + lit, StringComparison.Ordinal) || code.Contains(lit, StringComparison.Ordinal));
     }

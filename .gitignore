@@ -48,3 +48,9 @@ desktop.ini
 # Internal design work order for the home screen (an agent brief with the owner's chat), kept locally
 /docs/DESIGN-home-redesign.md
 /docs/REFACTOR-modules.md
+
+# Local dev scripts (owner-run end-to-end/red-team checks; not part of the public repo)
+/tools/acceptance.ps1
+/tools/live-ui-agents.ps1
+/tools/redteam-agent.ps1
+/tools/McpClient.psm1

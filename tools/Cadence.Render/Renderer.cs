@@ -126,7 +126,7 @@ internal static class Renderer
     }
 
     /// <summary>
-    /// toolscceptance.ps1 and tools\live-ui-agents.ps1 find a schedule by name and Invoke it, and read the "UpdatedLine" cell: check that the table's peers offer that
+    /// The owner-run UI scripts find a schedule by name and Invoke it, and read the "UpdatedLine" cell: check that the table's peers offer that
     /// (the render is laid out off-screen, but peers do not need a window).
     /// </summary>
     static void CheckAutomation(FrameworkElement root)
