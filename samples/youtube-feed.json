@@ -1,0 +1,15 @@
+{
+  "id": "y0utub3f",
+  "name": "YouTube feed download",
+  "enabled": true,
+  "schedule": { "cron": ["0 2 * * *"] },
+  "run": {
+    "kind": "runProgram",
+    "exe": "C:\\Tools\\yt-dlp.exe",
+    "args": "--download-archive archive.txt \"https://www.youtube.com/feed/subscriptions\"",
+    "cwd": "C:\\Users\\YOU\\Videos\\feed",
+    "timeoutSec": 7200,
+    "hidden": true,
+    "encoding": "utf8"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "id": "d4dst0ck",
+  "name": "Stock ingest (Dad)",
+  "enabled": true,
+  "schedule": { "cron": ["0 18 * * 1-5"], "skipHolidays": "nyse" },
+  "run": {
+    "kind": "runProgram",
+    "exe": "C:\\Windows\\py.exe",
+    "args": "-u \"C:\\Users\\YOU\\stocks\\ingest.py\"",
+    "cwd": "C:\\Users\\YOU\\stocks",
+    "env": { "PYTHONIOENCODING": "utf-8" },
+    "timeoutSec": 1800,
+    "hidden": true,
+    "encoding": "utf8"
+  },
+  "settings": { "startWhenAvailable": true, "runOnBatteries": true, "stopOnBatteries": false, "wakeToRun": false }
+}

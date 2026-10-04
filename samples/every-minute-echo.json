@@ -1,0 +1,12 @@
+{
+  "id": "ech0t1ck",
+  "name": "Every minute echo",
+  "enabled": true,
+  "schedule": { "cron": ["* * * * *"] },
+  "run": {
+    "kind": "runProgram",
+    "exe": "cmd.exe",
+    "args": "/d /c \"echo tick\"",
+    "hidden": true
+  }
+}
