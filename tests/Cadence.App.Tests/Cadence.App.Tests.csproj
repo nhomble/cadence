@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Tests of the adapters that stay in the WPF app: drag and drop (real WPF events) and the .lnk reader (real shell links). They see the App's internal types through InternalsVisibleTo (see Cadence.App.csproj). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Cadence.App.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- WPF's IDataObject / DragEventArgs, without UseWPF (which would add WPF implicit usings and an ambiguous Path). -->
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WPF" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Cadence.TestKit\Cadence.TestKit.csproj" />
+    <ProjectReference Include="..\..\src\Cadence.App\Cadence.App.csproj" />
+    <ProjectReference Include="..\..\src\Cadence.Core\Cadence.Core.csproj" />
+    <ProjectReference Include="..\..\src\Cadence.Scheduler\Cadence.Scheduler.csproj" />
+    <ProjectReference Include="..\..\src\Cadence.History\Cadence.History.csproj" />
+    <ProjectReference Include="..\..\src\Cadence.Agent\Cadence.Agent.csproj" />
+    <ProjectReference Include="..\..\src\Cadence.Presentation\Cadence.Presentation.csproj" />
+    <ProjectReference Include="..\Cadence.Demo\Cadence.Demo.csproj" />
+  </ItemGroup>
+</Project>

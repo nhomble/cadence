@@ -1,0 +1,169 @@
+<UserControl x:Class="Cadence.App.UI.Views.ListPage" x:ClassModifier="internal"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:Cadence.App.UI.Views"
+             xmlns:vm="clr-namespace:Cadence.App.UI.ViewModels;assembly=Cadence.Presentation">
+  <UserControl.Resources>
+    <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+    <!-- ===== table cells: one value each, color only for problems and "Running now" ===== -->
+    <Style x:Key="NameText" TargetType="TextBlock" BasedOn="{StaticResource Cell}">
+      <Setter Property="Foreground" Value="{StaticResource FgBrush}" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding IsDimmed}" Value="True"><Setter Property="Foreground" Value="{StaticResource DimTextBrush}" /></DataTrigger>
+        <MultiDataTrigger>
+          <MultiDataTrigger.Conditions>
+            <Condition Binding="{Binding IsDimmed}" Value="True" />
+            <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True" />
+          </MultiDataTrigger.Conditions>
+          <Setter Property="Foreground" Value="{StaticResource FgBrush}" />
+        </MultiDataTrigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="ValueText" TargetType="TextBlock" BasedOn="{StaticResource NameText}" />
+
+    <!-- The last result and the state: Fg, or the color of the problem. -->
+    <Style x:Key="ToneResult" TargetType="TextBlock" BasedOn="{StaticResource NameText}">
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding ResultTone}" Value="Dim"><Setter Property="Foreground" Value="{StaticResource DimTextBrush}" /></DataTrigger>
+        <DataTrigger Binding="{Binding ResultTone}" Value="Red"><Setter Property="Foreground" Value="{StaticResource RedBrush}" /></DataTrigger>
+        <DataTrigger Binding="{Binding ResultTone}" Value="Orange"><Setter Property="Foreground" Value="{StaticResource OrangeBrush}" /></DataTrigger>
+        <DataTrigger Binding="{Binding ResultTone}" Value="Yellow"><Setter Property="Foreground" Value="{StaticResource YellowBrush}" /></DataTrigger>
+        <DataTrigger Binding="{Binding ResultTone}" Value="Cyan"><Setter Property="Foreground" Value="{StaticResource CyanBrush}" /></DataTrigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="ToneState" TargetType="TextBlock" BasedOn="{StaticResource NameText}">
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding StateTone}" Value="Dim"><Setter Property="Foreground" Value="{StaticResource DimTextBrush}" /></DataTrigger>
+        <DataTrigger Binding="{Binding StateTone}" Value="Red"><Setter Property="Foreground" Value="{StaticResource RedBrush}" /></DataTrigger>
+        <DataTrigger Binding="{Binding StateTone}" Value="Orange"><Setter Property="Foreground" Value="{StaticResource OrangeBrush}" /></DataTrigger>
+        <DataTrigger Binding="{Binding StateTone}" Value="Yellow"><Setter Property="Foreground" Value="{StaticResource YellowBrush}" /></DataTrigger>
+        <DataTrigger Binding="{Binding StateTone}" Value="Cyan"><Setter Property="Foreground" Value="{StaticResource CyanBrush}" /></DataTrigger>
+      </Style.Triggers>
+    </Style>
+
+    <!-- Managed rows -->
+    <DataTemplate x:Key="NameCell">
+      <Grid Margin="8,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBlock Text="{Binding Name}" Style="{StaticResource NameText}" ToolTip="{Binding Name}" />
+        <!-- [P23] The owner locked this job against AI agents (MDL2 padlock). -->
+        <TextBlock Grid.Column="1" Style="{StaticResource IconGlyph}" Text="&#xE72E;" Foreground="{StaticResource DimTextBrush}" Margin="7,0,0,0" ToolTip="{Binding LockedTooltip}"
+                   AutomationProperties.Name="Locked: AI agents can't change this" Visibility="{Binding IsLocked, Converter={StaticResource BoolToVis}}" />
+      </Grid>
+    </DataTemplate>
+    <DataTemplate x:Key="RateCell"><TextBlock Text="{Binding RateText}" Style="{StaticResource ValueText}" Margin="8,0" ToolTip="{Binding RateTooltip}" /></DataTemplate>
+    <DataTemplate x:Key="ScheduleCell"><TextBlock Text="{Binding Schedule}" Style="{StaticResource CellDim}" Margin="8,0" ToolTip="{Binding Schedule}" /></DataTemplate>
+    <DataTemplate x:Key="NextCell"><TextBlock Text="{Binding NextCell}" Style="{StaticResource ValueText}" Margin="8,0" /></DataTemplate>
+    <DataTemplate x:Key="ResultCell"><TextBlock Text="{Binding ResultCell}" Style="{StaticResource ToneResult}" Margin="8,0" ToolTip="{Binding ResultTooltip}" /></DataTemplate>
+    <DataTemplate x:Key="AvgCell"><TextBlock Text="{Binding AvgText}" Style="{StaticResource ValueText}" Margin="8,0" TextAlignment="Right" /></DataTemplate>
+    <DataTemplate x:Key="SuccessCell"><TextBlock Text="{Binding SuccessText}" Style="{StaticResource ValueText}" Margin="8,0" TextAlignment="Right" /></DataTemplate>
+    <DataTemplate x:Key="StateCell"><TextBlock Text="{Binding StateText}" Style="{StaticResource ToneState}" Margin="8,0" ToolTip="{Binding BadgeTooltip}" /></DataTemplate>
+    <!-- [P23] "2 h ago by Claude Code": the cell trims with an ellipsis; the UI Automation name is the full "Updated 2 h ago by Claude Code" (tools\live-ui-agents.ps1 reads it). -->
+    <DataTemplate x:Key="UpdatedCell">
+      <TextBlock Text="{Binding UpdatedCell}" Style="{StaticResource CellDim}" Margin="8,0" ToolTip="{Binding UpdatedTooltip}"
+                 AutomationProperties.AutomationId="UpdatedLine" AutomationProperties.Name="{Binding UpdatedAutomationName}" />
+    </DataTemplate>
+
+    <!-- A schedule row's container: its UI Automation name is the schedule's name, the help text the rate, result and state. -->
+    <Style x:Key="ScheduleRow" TargetType="ListViewItem" BasedOn="{StaticResource GridRow}">
+      <Setter Property="AutomationProperties.Name" Value="{Binding Name}" />
+      <Setter Property="AutomationProperties.HelpText" Value="{Binding HelpText}" />
+    </Style>
+
+    <!-- Other tasks (read-only) -->
+    <DataTemplate x:Key="ForeignNameCell"><TextBlock Text="{Binding Name}" Style="{StaticResource NameText}" Margin="8,0" ToolTip="{Binding Name}" /></DataTemplate>
+    <DataTemplate x:Key="ForeignFolderCell"><TextBlock Text="{Binding Folder}" Style="{StaticResource CellDim}" Margin="8,0" ToolTip="{Binding Folder}" /></DataTemplate>
+    <DataTemplate x:Key="ForeignRateCell"><TextBlock Text="{Binding RateText}" Style="{StaticResource CellDim}" Margin="8,0" ToolTip="{Binding RateTooltip}" /></DataTemplate>
+    <DataTemplate x:Key="ForeignNextCell"><TextBlock Text="{Binding NextCell}" Style="{StaticResource CellDim}" Margin="8,0" /></DataTemplate>
+    <DataTemplate x:Key="ForeignResultCell"><TextBlock Text="{Binding Result}" Style="{StaticResource ToneResult}" Margin="8,0" ToolTip="{Binding Result}" /></DataTemplate>
+    <DataTemplate x:Key="ForeignStateCell"><TextBlock Text="{Binding StateText}" Style="{StaticResource CellDim}" Margin="8,0" /></DataTemplate>
+    <Style x:Key="ForeignRow" TargetType="ListViewItem" BasedOn="{StaticResource GridRow}">
+      <Setter Property="AutomationProperties.Name" Value="{Binding Name}" />
+      <Setter Property="ToolTip" Value="See what this task does (read-only)" />
+    </Style>
+  </UserControl.Resources>
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <!-- Error: a flat line above the table, with a way to try again (F5). -->
+    <Border Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}" Height="32" Padding="16,0" BorderBrush="{StaticResource HighlightBrush}" BorderThickness="0,0,0,1">
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <TextBlock Text="{Binding Error}" Foreground="{StaticResource RedBrush}" TextTrimming="CharacterEllipsis" MaxWidth="900" />
+        <Button Content="Retry" Style="{StaticResource LinkButton}" Command="{Binding RefreshCommand}" Margin="14,0,0,0" ToolTip="Read Task Scheduler again (F5)" AutomationProperties.Name="Retry" />
+      </StackPanel>
+    </Border>
+
+    <!-- The schedules: always a table, with its headers, even when there are none. -->
+    <Grid Grid.Row="1" Margin="16,0,0,0">
+      <views:ScheduleGrid x:Name="Table" Style="{StaticResource GridTable}" ItemsSource="{Binding Rows}" ItemContainerStyle="{StaticResource ScheduleRow}"
+                          SelectionMode="Extended" AutomationProperties.Name="Schedules" AutomationProperties.AutomationId="ScheduleTable">
+        <views:ScheduleGrid.View>
+          <GridView x:Name="TableView" ColumnHeaderContainerStyle="{StaticResource GridHeader}" AllowsColumnReorder="False" />
+        </views:ScheduleGrid.View>
+        <views:ScheduleGrid.ContextMenu>
+          <ContextMenu x:Name="RowMenu">
+            <MenuItem Header="Open" FontWeight="SemiBold" InputGestureText="Enter" Command="{Binding OpenSelectedCommand}" />
+            <MenuItem Header="Run now" InputGestureText="Ctrl+R" Command="{Binding RunSelectedCommand}" />
+            <MenuItem Header="Enable" Command="{Binding EnableSelectedCommand}" />
+            <MenuItem Header="Disable" Command="{Binding DisableSelectedCommand}" />
+            <MenuItem Header="Duplicate" Command="{Binding DuplicateSelectedCommand}" />
+            <Separator />
+            <MenuItem Header="Open in Task Scheduler" Command="{Binding OpenInTaskSchedulerSelectedCommand}" />
+            <MenuItem Header="Open folder" Command="{Binding OpenFolderSelectedCommand}" ToolTip="Show the script (or program) in File Explorer" AutomationProperties.Name="Open folder" />
+            <MenuItem Header="Copy task path" Command="{Binding CopyPathSelectedCommand}" />
+            <Separator />
+            <MenuItem Header="Delete…" InputGestureText="Del" Command="{Binding DeleteSelectedCommand}" />
+          </ContextMenu>
+        </views:ScheduleGrid.ContextMenu>
+      </views:ScheduleGrid>
+
+      <!-- The table's body when there is nothing to show: one line, top-left. -->
+      <Grid Margin="0,28,0,0" VerticalAlignment="Top" IsHitTestVisible="True">
+        <TextBlock Text="Reading Task Scheduler…" Style="{StaticResource Dim}" Margin="8,6,0,0" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}" />
+        <WrapPanel Margin="8,6,16,0" Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVis}}">
+          <TextBlock Text="No schedules yet." VerticalAlignment="Center" Margin="0,0,12,0" />
+          <Button Content="New schedule" Style="{StaticResource Primary}" Command="{Binding DataContext.NewCommand, RelativeSource={RelativeSource AncestorType=views:MainView}}"
+                  AutomationProperties.Name="New schedule" AutomationProperties.AutomationId="EmptyNewButton" />
+          <TextBlock Text="or drop a program, script or shortcut anywhere on this window." Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="12,0,0,0" />
+        </WrapPanel>
+        <StackPanel Orientation="Horizontal" Margin="8,6,16,0" Visibility="{Binding NoMatches, Converter={StaticResource BoolToVis}}">
+          <TextBlock Text="{Binding NoMatchText}" Style="{StaticResource Dim}" VerticalAlignment="Center" />
+          <Button Content="Clear filter" Style="{StaticResource LinkButton}" Command="{Binding ClearFilterCommand}" Margin="12,0,0,0" AutomationProperties.Name="Clear filter" />
+        </StackPanel>
+      </Grid>
+    </Grid>
+
+    <!-- Other Task Scheduler tasks (read-only), below the schedules: a header, then a second table with the same look. -->
+    <Grid Grid.Row="2" Margin="16,0,0,0" Visibility="{Binding ShowForeign, Converter={StaticResource BoolToVis}}">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+      <Border BorderBrush="{StaticResource HighlightBrush}" BorderThickness="0,1,0,0" Margin="0,6,0,0">
+        <Grid Height="30">
+          <ToggleButton Style="{StaticResource ExpanderHeaderToggle}" IsChecked="{Binding ForeignExpanded, Mode=TwoWay}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,-8,0,-8"
+                        AutomationProperties.Name="Other Task Scheduler tasks">
+            <TextBlock Text="{Binding ForeignHeader}" Style="{StaticResource Dim}" />
+          </ToggleButton>
+          <Button Content="Open Task Scheduler" Style="{StaticResource LinkButton}" Command="{Binding OpenTaskSchedulerCommand}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,16,0"
+                  AutomationProperties.Name="Open Task Scheduler" />
+        </Grid>
+      </Border>
+      <views:ScheduleGrid x:Name="ForeignTable" Grid.Row="1" Style="{StaticResource GridTable}" ItemsSource="{Binding ForeignRows}" ItemContainerStyle="{StaticResource ForeignRow}"
+                          SelectionMode="Single" MaxHeight="300" AutomationProperties.Name="Other Task Scheduler tasks" Visibility="{Binding ForeignExpanded, Converter={StaticResource BoolToVis}}">
+        <views:ScheduleGrid.View>
+          <GridView x:Name="ForeignView" ColumnHeaderContainerStyle="{StaticResource GridHeader}" AllowsColumnReorder="False" />
+        </views:ScheduleGrid.View>
+      </views:ScheduleGrid>
+    </Grid>
+  </Grid>
+</UserControl>

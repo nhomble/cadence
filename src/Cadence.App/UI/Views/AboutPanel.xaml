@@ -1,0 +1,18 @@
+<UserControl x:Class="Cadence.App.UI.Views.AboutPanel" x:ClassModifier="internal"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{StaticResource BgBrush}" Foreground="{StaticResource FgBrush}" FontFamily="{StaticResource UiFont}" FontSize="13"
+             TextOptions.TextFormattingMode="Display" UseLayoutRounding="True">
+  <StackPanel Margin="30,28,30,26">
+    <StackPanel Orientation="Horizontal">
+      <Path Data="M0,9 H5 L8,2 L13,16 L16,9 H22" Stroke="{StaticResource BlueBrush}" StrokeThickness="2.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+            Width="22" Height="18" VerticalAlignment="Center" />
+      <TextBlock Text="Cadence" FontSize="15" FontWeight="SemiBold" Margin="12,0,0,0" />
+    </StackPanel>
+    <TextBlock x:Name="VersionText" Style="{StaticResource Dim}" Margin="34,6,0,0" />
+    <TextBlock Text="Cadence is a front end for Windows Task Scheduler; your schedules live there." TextWrapping="Wrap" Margin="0,22,0,0" LineHeight="20" />
+    <TextBlock Text="Every schedule is stored as a cron expression inside the task, so you can open Task Scheduler at any time and see exactly what Cadence made." Style="{StaticResource Dim}"
+               TextWrapping="Wrap" Margin="0,12,0,0" LineHeight="20" />
+    <Button x:Name="CloseButton" Content="Close" Click="OnClose" IsDefault="True" IsCancel="True" HorizontalAlignment="Right" MinWidth="92" Margin="0,24,0,0" />
+  </StackPanel>
+</UserControl>

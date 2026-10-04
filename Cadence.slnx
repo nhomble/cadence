@@ -1,0 +1,23 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Cadence.Cron/Cadence.Cron.csproj" />
+    <Project Path="src/Cadence.Core/Cadence.Core.csproj" />
+    <Project Path="src/Cadence.History/Cadence.History.csproj" />
+    <Project Path="src/Cadence.Scheduler/Cadence.Scheduler.csproj" />
+    <Project Path="src/Cadence.Mcp/Cadence.Mcp.csproj" />
+    <Project Path="src/Cadence.Agent/Cadence.Agent.csproj" />
+    <Project Path="src/Cadence.Mvvm/Cadence.Mvvm.csproj" />
+    <Project Path="src/Cadence.Presentation/Cadence.Presentation.csproj" />
+    <Project Path="src/Cadence.App/Cadence.App.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Cadence.TestKit/Cadence.TestKit.csproj" />
+    <Project Path="tests/Cadence.Demo/Cadence.Demo.csproj" />
+    <Project Path="tests/Cadence.Tests/Cadence.Tests.csproj" />
+    <Project Path="tests/Cadence.App.Tests/Cadence.App.Tests.csproj" />
+    <Project Path="tests/Cadence.IntegrationTests/Cadence.IntegrationTests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Cadence.Render/Cadence.Render.csproj" />
+  </Folder>
+</Solution>

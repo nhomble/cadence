@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Cadence.Agent</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Cadence.Core\Cadence.Core.csproj" />
+    <ProjectReference Include="..\Cadence.Scheduler\Cadence.Scheduler.csproj" />
+    <ProjectReference Include="..\Cadence.History\Cadence.History.csproj" />
+    <ProjectReference Include="..\Cadence.Mcp\Cadence.Mcp.csproj" />
+  </ItemGroup>
+</Project>

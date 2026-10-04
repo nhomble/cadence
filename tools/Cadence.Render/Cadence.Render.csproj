@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Dev-only screenshot tool (docs\screens): renders the UI states from the sample data of tests\Cadence.Demo to PNGs, off-screen, with no Task Scheduler access.
+       It is not shipped; build.cmd builds it only to keep it compiling. It references the App (whose internals it sees through InternalsVisibleTo), Presentation and Demo: no source is linked.
+       Usage: see tools\Cadence.Render\Program.cs and docs\README.md. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Cadence.App</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <StartupObject>Cadence.Render.Program</StartupObject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Cadence.App\Cadence.App.csproj" />
+    <ProjectReference Include="..\..\src\Cadence.Core\Cadence.Core.csproj" />
+    <ProjectReference Include="..\..\src\Cadence.Scheduler\Cadence.Scheduler.csproj" />
+    <ProjectReference Include="..\..\src\Cadence.History\Cadence.History.csproj" />
+    <ProjectReference Include="..\..\src\Cadence.Agent\Cadence.Agent.csproj" />
+    <ProjectReference Include="..\..\src\Cadence.Mvvm\Cadence.Mvvm.csproj" />
+    <ProjectReference Include="..\..\src\Cadence.Presentation\Cadence.Presentation.csproj" />
+    <ProjectReference Include="..\..\tests\Cadence.Demo\Cadence.Demo.csproj" />
+  </ItemGroup>
+</Project>

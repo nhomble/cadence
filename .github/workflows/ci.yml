@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # build.cmd runs the layering check, the unit tests (headless and WPF adapters) and Cadence.exe --selftest.
+      # Integration tests are not run in CI: the runner is a service session, so InteractiveToken tasks never fire.
+      - name: Build
+        shell: cmd
+        run: build.cmd
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Cadence
+          path: bin/Cadence.exe

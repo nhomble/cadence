@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>Cadence</AssemblyName>
+    <RootNamespace>Cadence.App</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationManifest>..\..\app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\..\cadence.ico</ApplicationIcon>
+    <StartupObject>Cadence.App.Program</StartupObject>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <DebugType>embedded</DebugType>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile Condition="'$(SelfContained)'=='true'">true</EnableCompressionInSingleFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ApplicationDefinition Remove="App.xaml" />
+    <Page Include="App.xaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The App is an exe with no public API and no seams: its types stay internal. The dev-only screenshot tool and the adapter tests need its WPF views and Win32/COM interop,
+         so they (and only they) see the internals. Making them public would turn "public" into noise in the one project where nothing is a seam. (The App's assembly is named Cadence; the names below are the friends' assembly names.) -->
+    <InternalsVisibleTo Include="Cadence.Render" />
+    <InternalsVisibleTo Include="Cadence.App.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Cadence.Core\Cadence.Core.csproj" />
+    <ProjectReference Include="..\Cadence.Scheduler\Cadence.Scheduler.csproj" />
+    <ProjectReference Include="..\Cadence.History\Cadence.History.csproj" />
+    <ProjectReference Include="..\Cadence.Agent\Cadence.Agent.csproj" />
+    <ProjectReference Include="..\Cadence.Presentation\Cadence.Presentation.csproj" />
+    <ProjectReference Include="..\Cadence.Mvvm\Cadence.Mvvm.csproj" />
+  </ItemGroup>
+</Project>

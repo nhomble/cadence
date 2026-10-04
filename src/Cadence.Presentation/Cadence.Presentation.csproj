@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- View models, UI logic, the CLI text and the seams to the shell (IAppServices, IDialogs, IShell). No WPF reference at all: net10.0-windows only because IAppServices uses Scheduler/Agent types.
+       The namespaces stay Cadence.App.* (the code was carved out of the App). Rules: docs\REFACTOR-modules.md (b)5. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Cadence.App</RootNamespace>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Cadence.Core\Cadence.Core.csproj" />
+    <ProjectReference Include="..\Cadence.Scheduler\Cadence.Scheduler.csproj" />
+    <ProjectReference Include="..\Cadence.History\Cadence.History.csproj" />
+    <ProjectReference Include="..\Cadence.Agent\Cadence.Agent.csproj" />
+    <ProjectReference Include="..\Cadence.Mvvm\Cadence.Mvvm.csproj" />
+  </ItemGroup>
+</Project>

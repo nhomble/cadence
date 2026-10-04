@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Sample data and a pretend machine (IAppServices without Task Scheduler) for the unit tests and the dev-only tools\Cadence.Render. Not shipped. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Cadence.App.Demo</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Cadence.Core\Cadence.Core.csproj" />
+    <ProjectReference Include="..\..\src\Cadence.Scheduler\Cadence.Scheduler.csproj" />
+    <ProjectReference Include="..\..\src\Cadence.History\Cadence.History.csproj" />
+    <ProjectReference Include="..\..\src\Cadence.Agent\Cadence.Agent.csproj" />
+    <ProjectReference Include="..\..\src\Cadence.Presentation\Cadence.Presentation.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,50 @@
+﻿# Build output (build.cmd writes bin\ and obj\; the standalone publish lands in bin\standalone\)
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+publish/
+artifacts/
+*.pdb
+*.nupkg
+*.binlog
+
+# Test and tool output
+TestResults/
+*.trx
+*.log
+*.dmp
+screenshots/
+# Scratch captures of a live window (not the tools\Cadence.Render scenes, which are kept)
+docs/screens/live-*.png
+
+# Editors and IDEs
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userprefs
+*.swp
+*~
+
+# Local tooling state and secrets
+.claude/
+.env
+.env.*
+
+# OS noise
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Internal design log, kept locally (not part of the public repo)
+/PLAN.md
+
+# Internal review notes, kept locally
+/docs/INVESTIGATION-0x80070005.md
+/docs/REVIEW-*.md
+
+# Internal design work order for the home screen (an agent brief with the owner's chat), kept locally
+/docs/DESIGN-home-redesign.md
+/docs/REFACTOR-modules.md

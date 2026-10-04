@@ -1,0 +1,45 @@
+name: Release
+
+# Push a tag like v1.0.0 to build and publish Cadence.exe on the Releases page.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Set version from tag
+        shell: pwsh
+        run: |
+          $v = $env:GITHUB_REF_NAME
+          if ($v -notmatch '^v[0-9A-Za-z.+-]+$') { throw "Unexpected tag name: $v" }
+          "CADENCE_VERSION=$($v.Substring(1))" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - name: Build
+        shell: cmd
+        run: build.cmd standalone
+
+      - name: Rename and checksum
+        shell: pwsh
+        run: |
+          Move-Item bin\standalone\Cadence.exe bin\Cadence-standalone.exe
+          $h = (Get-FileHash bin\Cadence.exe -Algorithm SHA256).Hash.ToLower()
+          "$h  Cadence.exe" | Set-Content -Encoding ascii bin\Cadence.exe.sha256
+          $h = (Get-FileHash bin\Cadence-standalone.exe -Algorithm SHA256).Hash.ToLower()
+          "$h  Cadence-standalone.exe" | Set-Content -Encoding ascii bin\Cadence-standalone.exe.sha256
+
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" bin\Cadence.exe bin\Cadence.exe.sha256 bin\Cadence-standalone.exe bin\Cadence-standalone.exe.sha256 --title "${{ github.ref_name }}" --generate-notes

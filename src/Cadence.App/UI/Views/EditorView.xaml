@@ -1,0 +1,722 @@
+<UserControl x:Class="Cadence.App.UI.Views.EditorView" x:ClassModifier="internal"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:Cadence.App.UI.Views"
+             xmlns:vm="clr-namespace:Cadence.App.UI.ViewModels;assembly=Cadence.Presentation"
+             xmlns:logic="clr-namespace:Cadence.App.UI.Logic;assembly=Cadence.Presentation">
+  <UserControl.Resources>
+    <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    <views:InverseBoolToVisibilityConverter x:Key="InvBoolToVis" />
+    <views:BadgeTextBrushConverter x:Key="ToneText" />
+
+    <!-- A message under a field: red for errors, yellow for warnings. -->
+    <DataTemplate DataType="{x:Type vm:FieldNote}">
+      <TextBlock Text="{Binding Text}" TextWrapping="Wrap" Margin="2,7,0,0" FontSize="12">
+        <TextBlock.Style>
+          <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource YellowBrush}" />
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding IsError}" Value="True"><Setter Property="Foreground" Value="{StaticResource RedBrush}" /></DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </TextBlock.Style>
+      </TextBlock>
+    </DataTemplate>
+
+    <Style x:Key="NameBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Padding" Value="10,6" />
+    </Style>
+
+    <!-- Dropdown items are Option / TimeoutChoice records: show their Label. -->
+    <DataTemplate x:Key="OptionTemplate">
+      <TextBlock Text="{Binding Label}" />
+    </DataTemplate>
+
+    <Style x:Key="Card" TargetType="Border">
+      <Setter Property="Background" Value="{StaticResource CardBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource HighlightBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="14,12" />
+    </Style>
+
+    <!-- A flat clickable row (the recent runs). -->
+    <Style x:Key="RowButton" TargetType="Button">
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Root" Background="Transparent" CornerRadius="4" Padding="10,8" BorderThickness="1" BorderBrush="Transparent">
+              <ContentPresenter />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Root" Property="Background" Value="{StaticResource HighlightBrush}" /></Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource CyanBrush}" /></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- ===== Simple view items ===== -->
+    <DataTemplate DataType="{x:Type vm:TimeItem}">
+      <StackPanel Orientation="Horizontal" Margin="0,0,10,8">
+        <TextBox Text="{Binding Text, UpdateSourceTrigger=LostFocus}" Width="78" TextAlignment="Center" AutomationProperties.Name="Time" />
+        <Button Style="{StaticResource LinkButton}" Content="×" Foreground="{StaticResource DimBrush}" Command="{Binding RemoveCommand}" ToolTip="Remove this time" AutomationProperties.Name="Remove this time" Padding="8,0,0,0"
+                VerticalAlignment="Center" FontSize="15" />
+      </StackPanel>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type vm:ChipItem}">
+      <ToggleButton Style="{StaticResource Chip}" Content="{Binding Label}" IsChecked="{Binding IsOn, Mode=TwoWay}" Margin="0,0,6,6" AutomationProperties.Name="{Binding Label}" />
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type vm:EnvRowViewModel}">
+      <Grid Margin="0,0,0,8">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="170" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBox Style="{StaticResource MonoTextBox}" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" views:TextBoxHelper.Placeholder="NAME" AutomationProperties.Name="Variable name" />
+        <TextBlock Grid.Column="1" Text="=" Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="9,0" />
+        <TextBox Grid.Column="2" Style="{StaticResource MonoTextBox}" Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" views:TextBoxHelper.Placeholder="value" AutomationProperties.Name="Variable value" />
+        <Button Grid.Column="3" Style="{StaticResource LinkButton}" Content="×" Foreground="{StaticResource DimBrush}" Command="{Binding RemoveCommand}" ToolTip="Remove this variable" AutomationProperties.Name="Remove this variable"
+                Padding="10,0,2,0" VerticalAlignment="Center" FontSize="15" />
+      </Grid>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type vm:DiagnosticItem}">
+      <TextBlock Text="{Binding Text}" TextWrapping="Wrap" Margin="2,6,0,0" FontSize="12">
+        <TextBlock.Style>
+          <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource DimTextBrush}" />
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding IsError}" Value="True"><Setter Property="Foreground" Value="{StaticResource RedBrush}" /></DataTrigger>
+              <DataTrigger Binding="{Binding IsWarning}" Value="True"><Setter Property="Foreground" Value="{StaticResource YellowBrush}" /></DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </TextBlock.Style>
+      </TextBlock>
+    </DataTemplate>
+
+    <!-- A next run: dot, time, relative day, note. A skipped holiday is dimmed and struck through. -->
+    <DataTemplate DataType="{x:Type vm:PreviewRunItem}">
+      <Grid Margin="0,0,0,7">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="20" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Ellipse Width="7" Height="7" HorizontalAlignment="Left" VerticalAlignment="Center">
+          <Ellipse.Style>
+            <Style TargetType="Ellipse">
+              <Setter Property="Fill" Value="{StaticResource BlueBrush}" />
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding IsClockChange}" Value="True"><Setter Property="Fill" Value="{StaticResource YellowBrush}" /></DataTrigger>
+                <DataTrigger Binding="{Binding IsSkipped}" Value="True"><Setter Property="Fill" Value="{StaticResource DimBrush}" /></DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Ellipse.Style>
+        </Ellipse>
+        <TextBlock Grid.Column="1" Text="{Binding TimeText}" VerticalAlignment="Center">
+          <TextBlock.Style>
+            <Style TargetType="TextBlock">
+              <Setter Property="Foreground" Value="{StaticResource FgBrush}" />
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSkipped}" Value="True">
+                  <Setter Property="Foreground" Value="{StaticResource DimBrush}" />
+                  <Setter Property="TextDecorations" Value="Strikethrough" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </TextBlock.Style>
+        </TextBlock>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
+          <TextBlock Text="{Binding Relative}" Style="{StaticResource Small}" />
+          <TextBlock Text="{Binding Note}" Style="{StaticResource Small}" Margin="10,0,0,0" Foreground="{StaticResource DimTextBrush}" FontStyle="Italic"
+                     Visibility="{Binding HasNote, Converter={StaticResource BoolToVis}}" />
+        </StackPanel>
+      </Grid>
+    </DataTemplate>
+
+    <!-- A recent run: the row, and its details when expanded. -->
+    <DataTemplate DataType="{x:Type vm:RunRowViewModel}">
+      <StackPanel Margin="0,0,0,2">
+        <Button Style="{StaticResource RowButton}" Command="{Binding ToggleCommand}" AutomationProperties.Name="{Binding Text.Title}">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <TextBlock Text="{Binding Text.Title}" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{Binding Tone, Converter={StaticResource ToneText}}" />
+              <TextBlock Text="{Binding Text.When}" Style="{StaticResource Small}" Margin="0,3,0,0" />
+              <TextBlock Text="{Binding Text.Note}" TextWrapping="Wrap" Margin="0,3,0,0" MaxHeight="48">
+                <TextBlock.Style>
+                  <Style TargetType="TextBlock" BasedOn="{StaticResource Small}">
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding Text.Note}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </TextBlock.Style>
+              </TextBlock>
+            </StackPanel>
+            <TextBlock Grid.Column="1" Text="{Binding Text.Duration}" Style="{StaticResource Small}" VerticalAlignment="Top" Margin="10,2,0,0" />
+          </Grid>
+        </Button>
+        <Border Margin="24,0,0,6" Padding="12,10" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource HighlightBrush}" BorderThickness="1" CornerRadius="4"
+                Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVis}}">
+          <StackPanel>
+            <TextBlock Text="{Binding Detail.Exit}" FontSize="12" />
+            <TextBlock Text="{Binding Detail.Started}" Style="{StaticResource Small}" Margin="0,3,0,0" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding Detail.Message}" Margin="0,6,0,0" TextWrapping="Wrap">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource Small}">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding Detail.Message}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
+            <Button Content="Open Windows Security" Style="{StaticResource LinkButton}" Command="{Binding OpenSecurityCommand}" HorizontalAlignment="Left" Margin="0,8,0,0"
+                    Visibility="{Binding IsBlocked, Converter={StaticResource BoolToVis}}" AutomationProperties.Name="Open Windows Security" />
+            <StackPanel Visibility="{Binding HasOutputFiles, Converter={StaticResource BoolToVis}}">
+              <Border Background="{StaticResource BgBrush}" BorderBrush="{StaticResource HighlightBrush}" BorderThickness="1" CornerRadius="4" Padding="3" HorizontalAlignment="Left" Margin="0,10,0,8">
+                <StackPanel Orientation="Horizontal">
+                  <RadioButton Style="{StaticResource SegmentRadio}" Content="Output" IsChecked="{Binding ShowOutput, Mode=TwoWay}" Padding="12,3" />
+                  <RadioButton Style="{StaticResource SegmentRadio}" Content="Errors" IsChecked="{Binding ShowErrors, Mode=TwoWay}" Padding="12,3" />
+                </StackPanel>
+              </Border>
+              <Border Background="{StaticResource BgBrush}" BorderBrush="{StaticResource HighlightBrush}" BorderThickness="1" CornerRadius="4" Padding="10,8">
+                <ScrollViewer MaxHeight="190" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                  <TextBlock Text="{Binding ShownText}" FontSize="12" FontFamily="{StaticResource MonoFont}" TextWrapping="NoWrap" />
+                </ScrollViewer>
+              </Border>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <!-- ===================== top bar: Back, and the ... menu of a saved schedule ===================== -->
+    <Grid x:Name="TopBar" Grid.Row="0" Margin="32,14,32,0" MaxWidth="1180">
+      <Button Style="{StaticResource Ghost}" Command="{Binding BackCommand}" HorizontalAlignment="Left" Margin="-10,0,0,0" ToolTip="Back to your schedules (Esc)" AutomationProperties.Name="Back">
+        <StackPanel Orientation="Horizontal">
+          <Path Data="M7,0 L0,6 L7,12 M0,6 H16" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.8" StrokeStartLineCap="Round"
+                StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="16" Height="12" VerticalAlignment="Center" />
+          <TextBlock Text="Back" Margin="10,0,0,0" />
+        </StackPanel>
+      </Button>
+      <Button x:Name="MenuButton" Style="{StaticResource IconButton}" Command="{Binding ToggleMenuCommand}" HorizontalAlignment="Right" ToolTip="Run now, duplicate, stop managing, open in Task Scheduler"
+              AutomationProperties.Name="Schedule menu" Visibility="{Binding HasMenu, Converter={StaticResource BoolToVis}}">
+        <StackPanel Orientation="Horizontal">
+          <Ellipse Width="4" Height="4" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+          <Ellipse Width="4" Height="4" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Margin="4,0" />
+          <Ellipse Width="4" Height="4" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+        </StackPanel>
+      </Button>
+    </Grid>
+
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+      <Grid x:Name="Layout" Margin="32,18,32,26" HorizontalAlignment="Stretch" MaxWidth="1180">
+        <Grid.ColumnDefinitions>
+          <!-- [CP-C] The form keeps to the left edge (under Back) and the spare width goes to the gap before the runs. -->
+          <ColumnDefinition Width="20*" MaxWidth="660" />
+          <ColumnDefinition x:Name="GapCol" Width="32" />
+          <ColumnDefinition x:Name="RunsCol" Width="430" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ===================== the form ===================== -->
+        <StackPanel x:Name="Form" Grid.Column="0" MaxWidth="660" HorizontalAlignment="Stretch">
+          <!-- the notice: changed outside Cadence, renamed, another user, a copy, a newer version, damaged -->
+          <Border x:Name="BannerCard" Padding="18,16" Margin="0,0,0,18" Visibility="{Binding Notice.HasBanner, Converter={StaticResource BoolToVis}}">
+            <Border.Style>
+              <Style TargetType="Border" BasedOn="{StaticResource Card}">
+                <Setter Property="BorderBrush" Value="{StaticResource YellowBrush}" />
+                <Setter Property="Background" Value="#1F1E1A" />
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding Notice.BannerIsDamage}" Value="True"><Setter Property="BorderBrush" Value="{StaticResource RedBrush}" /></DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </Border.Style>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Path Data="M9,1.5 L17,16 H1 Z M9,7 V11.5 M9,13.6 V14" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="18" Height="17" Margin="0,2,14,0"
+                    VerticalAlignment="Top">
+                <Path.Style>
+                  <Style TargetType="Path">
+                    <Setter Property="Stroke" Value="{StaticResource YellowBrush}" />
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding Notice.BannerIsDamage}" Value="True"><Setter Property="Stroke" Value="{StaticResource RedBrush}" /></DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </Path.Style>
+              </Path>
+              <StackPanel Grid.Column="1">
+                <TextBlock Text="{Binding Notice.BannerTitle}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" LineHeight="21" AutomationProperties.AutomationId="BannerTitle" />
+                <Border Visibility="{Binding Notice.HasBannerLines, Converter={StaticResource BoolToVis}}" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource HighlightBrush}" BorderThickness="1"
+                        CornerRadius="4" Padding="12,9" Margin="0,12,0,0">
+                  <StackPanel>
+                    <ItemsControl ItemsSource="{Binding Notice.BannerLines}" Focusable="False" AutomationProperties.Name="What changed">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,2" />
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </Border>
+                <TextBlock Text="{Binding Notice.BannerNote}" Style="{StaticResource Dim}" TextWrapping="Wrap" LineHeight="19" Margin="0,12,0,0" Visibility="{Binding Notice.HasBannerNote, Converter={StaticResource BoolToVis}}" />
+                <WrapPanel Margin="0,16,0,0">
+                  <Button Content="Re-apply Cadence's version" Style="{StaticResource Primary}" Command="{Binding Notice.ReapplyCommand}" Padding="16,7" Margin="0,0,10,8"
+                          Visibility="{Binding Notice.ShowReapply, Converter={StaticResource BoolToVis}}" AutomationProperties.Name="Re-apply Cadence's version" />
+                  <Button Content="Stop managing it" Command="{Binding Notice.UntrackCommand}" Margin="0,0,10,8" Visibility="{Binding Notice.ShowUntrack, Converter={StaticResource BoolToVis}}"
+                          ToolTip="The task stays in Task Scheduler; Cadence stops managing it" AutomationProperties.Name="Stop managing it" />
+                  <Button Content="Delete…" Style="{StaticResource Danger}" Command="{Binding DeleteCommand}" Margin="0,0,10,8" Visibility="{Binding Notice.ShowBannerDelete, Converter={StaticResource BoolToVis}}"
+                          AutomationProperties.Name="Delete schedule" />
+                  <Button Content="Open in Task Scheduler" Command="{Binding OpenInTaskSchedulerCommand}" Margin="0,0,10,8" Visibility="{Binding Notice.ShowBannerOpen, Converter={StaticResource BoolToVis}}"
+                          AutomationProperties.Name="Open in Task Scheduler" />
+                </WrapPanel>
+              </StackPanel>
+            </Grid>
+          </Border>
+
+          <!-- Everything below is shown read-only while the notice above asks for a decision. -->
+          <StackPanel IsEnabled="{Binding Notice.FormEnabled}">
+
+          <!-- 1. name -->
+          <TextBox Style="{StaticResource NameBox}" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" views:TextBoxHelper.Placeholder="{Binding NamePlaceholder}" AutomationProperties.Name="Name" />
+          <ContentControl Content="{Binding NameNote}" Focusable="False" />
+          <!-- [P23] Created / Updated by whom, drift and the lock: one Dim line under the name. -->
+          <TextBlock Text="{Binding Notice.MetaLine}" Style="{StaticResource Small}" TextWrapping="Wrap" Margin="2,9,0,0" Visibility="{Binding Notice.HasMetaLine, Converter={StaticResource BoolToVis}}"
+                     AutomationProperties.AutomationId="MetaLine" />
+
+          <!-- 2. Do -->
+          <TextBlock Text="Do" Style="{StaticResource SectionLabel}" Margin="2,28,0,10" />
+          <Border HorizontalAlignment="Left" Background="{StaticResource HighlightBrush}" CornerRadius="4" Padding="12,5" Margin="0,0,0,12" ToolTip="Run a program is the only action for now">
+            <StackPanel Orientation="Horizontal">
+              <Path Data="M0,0 L9,5 L0,10 Z" Fill="{StaticResource GreenBrush}" Width="9" Height="10" VerticalAlignment="Center" />
+              <TextBlock Text="Run a program" Margin="9,0,0,0" FontWeight="SemiBold" />
+            </StackPanel>
+          </Border>
+
+          <views:ProgramDropZone x:Name="DropZone" Visibility="{Binding Program.HasProgram, Converter={StaticResource InvBoolToVis}}"
+                                 IsDragOver="{Binding Program.IsDropHover}" IsRejected="{Binding Program.HasProgramMessage}" />
+
+          <Border x:Name="ProgramCard" Padding="16,14" Visibility="{Binding Program.HasProgram, Converter={StaticResource BoolToVis}}">
+            <Border.Style>
+              <Style TargetType="Border" BasedOn="{StaticResource Card}">
+                <Style.Triggers>
+                  <!-- A file dragged over the editor replaces the program: the card lights up like the drop zone. -->
+                  <DataTrigger Binding="{Binding Program.IsDropHover}" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource BlueBrush}" />
+                    <Setter Property="Background" Value="{StaticResource HighlightBrush}" />
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </Border.Style>
+            <Grid>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <Border Width="40" Height="40" CornerRadius="6" Background="{StaticResource HighlightBrush}" VerticalAlignment="Center">
+                <Path Data="M0,1 H12 V11 H0 Z M0,4 H12 M2,2.5 H3" Stroke="{StaticResource BlueBrush}" StrokeThickness="1.6" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                      Width="14" Height="13" Stretch="None" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="1,0,0,0" />
+              </Border>
+              <StackPanel Grid.Column="1" Margin="14,0,12,0" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Program.ProgramName}" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Program.ProgramFolder}" Style="{StaticResource Small}" FontFamily="{StaticResource MonoFont}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0" ToolTip="{Binding Program.Exe}" />
+                <TextBlock Text="{Binding Program.ProgramVia}" Style="{StaticResource Small}" Foreground="{StaticResource BlueBrush}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"
+                           Visibility="{Binding Program.HasProgramVia, Converter={StaticResource BoolToVis}}" />
+              </StackPanel>
+              <Button Grid.Column="2" Content="Change" Command="{Binding Program.BrowseCommand}" VerticalAlignment="Center" AutomationProperties.Name="Change program" />
+              <!-- What runs, in full and selectable (as stored, nothing expanded), where it starts, and the two ways to inspect the file outside Cadence. -->
+              <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="12,10,0,0">
+                <TextBox Text="{Binding Program.ShortcutText, Mode=OneWay}" Style="{StaticResource SelectableText}" FontFamily="{StaticResource MonoFont}" Margin="0,0,0,3"
+                         Visibility="{Binding Program.HasShortcut, Converter={StaticResource BoolToVis}}" AutomationProperties.Name="Shortcut" />
+                <TextBox Text="{Binding Program.CommandLineText, Mode=OneWay}" Style="{StaticResource SelectableText}" FontFamily="{StaticResource MonoFont}" Foreground="{StaticResource FgBrush}"
+                         AutomationProperties.Name="Command line" />
+                <TextBox Text="{Binding Program.WorkingFolderText, Mode=OneWay}" Style="{StaticResource SelectableText}" Margin="0,3,0,0" AutomationProperties.Name="Working folder in use" />
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                  <Button Content="Open folder" Style="{StaticResource LinkButton}" Command="{Binding Program.OpenProgramFolderCommand}" Margin="2,0,0,0"
+                          ToolTip="Show the script (or program) in File Explorer, to inspect it in your editor" AutomationProperties.Name="Open folder" />
+                  <Button Content="Copy path" Style="{StaticResource LinkButton}" Command="{Binding Program.CopyProgramPathCommand}" Margin="16,0,0,0"
+                          ToolTip="Copy the full path of that file" AutomationProperties.Name="Copy path" />
+                </StackPanel>
+              </StackPanel>
+            </Grid>
+          </Border>
+          <ContentControl Content="{Binding ProgramNote}" Focusable="False" />
+          <ItemsControl ItemsSource="{Binding Program.ProgramWarnings}" Focusable="False" Visibility="{Binding Program.HasProgramWarnings, Converter={StaticResource BoolToVis}}" Margin="0,2,0,0">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="2,7,0,0" FontSize="12" Foreground="{StaticResource YellowBrush}" LineHeight="17" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <!-- Outdated: a quiet line, not a warning -->
+          <Grid Margin="2,10,0,0" Visibility="{Binding Notice.HasOutdated, Converter={StaticResource BoolToVis}}">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="{Binding Notice.OutdatedLine}" Style="{StaticResource Small}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,16,0" AutomationProperties.AutomationId="OutdatedLine" />
+            <Button Grid.Column="1" Content="Refresh now" Style="{StaticResource LinkButton}" Command="{Binding Notice.RefreshNowCommand}" VerticalAlignment="Center" FontSize="12"
+                    AutomationProperties.Name="Refresh now" />
+          </Grid>
+
+          <Expander Margin="0,12,0,0" IsExpanded="{Binding Program.IsAdvancedOpen, Mode=TwoWay}" AutomationProperties.Name="Advanced">
+            <Expander.Header>
+              <TextBlock Text="Advanced" Style="{StaticResource Dim}" />
+            </Expander.Header>
+            <StackPanel Margin="22,6,0,0">
+              <TextBlock Text="Program" Style="{StaticResource Small}" Margin="0,4,0,6" />
+              <TextBox Style="{StaticResource MonoTextBox}" Text="{Binding Program.Exe, UpdateSourceTrigger=PropertyChanged}" views:TextBoxHelper.Placeholder="C:\Tools\program.exe" AutomationProperties.Name="Program path" />
+
+              <TextBlock Text="Arguments" Style="{StaticResource Small}" Margin="0,16,0,6" />
+              <TextBox Style="{StaticResource MonoTextBox}" Text="{Binding Program.Args, UpdateSourceTrigger=PropertyChanged}" views:TextBoxHelper.Placeholder="--option value &quot;a path with spaces&quot;" AutomationProperties.Name="Arguments" />
+              <ContentControl Content="{Binding ArgsNote}" Focusable="False" />
+
+              <TextBlock Text="Working folder" Style="{StaticResource Small}" Margin="0,16,0,6" />
+              <TextBox Style="{StaticResource MonoTextBox}" Text="{Binding Program.WorkingDirectory, UpdateSourceTrigger=PropertyChanged}" views:TextBoxHelper.Placeholder="{Binding Program.WorkingDirectoryPlaceholder}" AutomationProperties.Name="Working folder" />
+              <ContentControl Content="{Binding FolderNote}" Focusable="False" />
+
+              <TextBlock Text="Time limit" Style="{StaticResource Small}" Margin="0,16,0,6" />
+              <StackPanel Orientation="Horizontal">
+                <ComboBox Width="180" ItemsSource="{x:Static vm:ProgramSectionViewModel.TimeoutChoices}" ItemTemplate="{StaticResource OptionTemplate}" SelectedItem="{Binding Program.SelectedTimeout}" AutomationProperties.Name="Time limit" />
+                <StackPanel Orientation="Horizontal" Visibility="{Binding Program.ShowCustomTimeout, Converter={StaticResource BoolToVis}}" Margin="12,0,0,0">
+                  <TextBox Width="80" Text="{Binding Program.CustomTimeoutMinutes, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Center" AutomationProperties.Name="Custom time limit in minutes" />
+                  <TextBlock Text="minutes" Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="10,0,0,0" />
+                </StackPanel>
+              </StackPanel>
+              <ContentControl Content="{Binding TimeoutNote}" Focusable="False" />
+
+              <CheckBox Content="Run hidden (and capture its output)" IsChecked="{Binding Program.Hidden}" Margin="0,18,0,0" ToolTip="Hidden jobs show no window; their output is kept for the run history." />
+              <CheckBox Content="The program writes UTF-8 text" IsChecked="{Binding Program.Utf8Output}" Margin="26,10,0,0" Visibility="{Binding Program.ShowEncoding, Converter={StaticResource BoolToVis}}"
+                        ToolTip="Turn on for programs that print UTF-8 (most Python and Node scripts); leave off for the classic Windows console." />
+
+              <TextBlock Text="Environment variables" Style="{StaticResource Small}" Margin="0,18,0,8" />
+              <ItemsControl ItemsSource="{Binding Program.Env}" Focusable="False" />
+              <Button Content="+ add variable" Style="{StaticResource LinkButton}" Command="{Binding Program.AddEnvCommand}" HorizontalAlignment="Left" Margin="0,2,0,0" />
+              <ContentControl Content="{Binding EnvNote}" Focusable="False" />
+            </StackPanel>
+          </Expander>
+
+          <!-- 3. When -->
+          <Grid Margin="0,32,0,12">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock Text="When" Style="{StaticResource SectionLabel}" VerticalAlignment="Center" Margin="2,0,0,0" />
+              <!-- [CP-C] The template cards, one click away from any draft (a dropped file starts at "every day at 9:00"). -->
+              <Button Content="Use a preset…" Style="{StaticResource LinkButton}" Command="{Binding Schedule.PickPresetCommand}" VerticalAlignment="Center" Margin="18,0,0,0"
+                      Visibility="{Binding Schedule.HasPresets, Converter={StaticResource BoolToVis}}" ToolTip="Good morning, weekdays at 6pm, every 15 minutes… (only the schedule changes)"
+                      AutomationProperties.Name="Use a preset" />
+            </StackPanel>
+            <Border HorizontalAlignment="Right" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource HighlightBrush}" BorderThickness="1" CornerRadius="4" Padding="3">
+              <StackPanel Orientation="Horizontal">
+                <RadioButton Style="{StaticResource SegmentRadio}" Content="Simple" GroupName="Mode" IsChecked="{Binding Schedule.IsSimpleMode, Mode=TwoWay}" AutomationProperties.Name="Simple view" />
+                <RadioButton Style="{StaticResource SegmentRadio}" Content="Cron" GroupName="Mode" IsChecked="{Binding Schedule.IsCronMode, Mode=TwoWay}" AutomationProperties.Name="Cron view" />
+              </StackPanel>
+            </Border>
+          </Grid>
+
+          <!-- Simple view -->
+          <StackPanel Visibility="{Binding Schedule.ShowSimpleControls, Converter={StaticResource BoolToVis}}">
+            <ComboBox ItemsSource="{x:Static vm:ScheduleSectionViewModel.FrequencyOptions}" ItemTemplate="{StaticResource OptionTemplate}" SelectedValuePath="Value" SelectedValue="{Binding Schedule.Frequency}" Width="260"
+                      HorizontalAlignment="Left" AutomationProperties.Name="How often" />
+
+            <StackPanel Visibility="{Binding Schedule.ShowTimes, Converter={StaticResource BoolToVis}}" Margin="0,16,0,0">
+              <TextBlock Text="At" Style="{StaticResource Small}" Margin="2,0,0,8" />
+              <StackPanel Orientation="Horizontal">
+                <ItemsControl ItemsSource="{Binding Schedule.Times}" Focusable="False">
+                  <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                </ItemsControl>
+                <Button Content="+ add time" Style="{StaticResource LinkButton}" Command="{Binding Schedule.AddTimeCommand}" VerticalAlignment="Top" Margin="2,8,0,0" />
+              </StackPanel>
+            </StackPanel>
+
+            <StackPanel Visibility="{Binding Schedule.ShowDays, Converter={StaticResource BoolToVis}}" Margin="0,12,0,0">
+              <TextBlock Text="{Binding Schedule.DaysLabel}" Style="{StaticResource Small}" Margin="2,0,0,8" />
+              <ItemsControl ItemsSource="{Binding Schedule.Days}" Focusable="False">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              </ItemsControl>
+            </StackPanel>
+
+            <StackPanel Visibility="{Binding Schedule.ShowMonthDates, Converter={StaticResource BoolToVis}}" Margin="0,12,0,0">
+              <TextBlock Text="On day" Style="{StaticResource Small}" Margin="2,0,0,8" />
+              <ItemsControl ItemsSource="{Binding Schedule.MonthDates}" Focusable="False">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <ToggleButton Style="{StaticResource Chip}" MinWidth="40" Content="{Binding Label}" IsChecked="{Binding IsOn, Mode=TwoWay}" Margin="0,0,5,5" AutomationProperties.Name="{Binding Label}" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <ToggleButton Style="{StaticResource Chip}" Content="Last day" IsChecked="{Binding Schedule.LastDayOfMonth}" HorizontalAlignment="Left" Margin="0,2,0,0" />
+            </StackPanel>
+
+            <StackPanel Visibility="{Binding Schedule.ShowWeekday, Converter={StaticResource BoolToVis}}" Margin="0,12,0,0" Orientation="Horizontal">
+              <ComboBox Width="130" ItemsSource="{x:Static vm:ScheduleSectionViewModel.WeekOptions}" ItemTemplate="{StaticResource OptionTemplate}" SelectedValuePath="Value" SelectedValue="{Binding Schedule.Week}" AutomationProperties.Name="Which week" />
+              <ComboBox Width="160" Margin="10,0,0,0" ItemsSource="{x:Static vm:ScheduleSectionViewModel.WeekdayOptions}" ItemTemplate="{StaticResource OptionTemplate}" SelectedValuePath="Value" SelectedValue="{Binding Schedule.Weekday}" AutomationProperties.Name="Which weekday" />
+              <TextBlock Text="of the month" Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="12,0,0,0" />
+            </StackPanel>
+
+            <StackPanel Visibility="{Binding Schedule.ShowInterval, Converter={StaticResource BoolToVis}}" Margin="0,16,0,0" Orientation="Horizontal">
+              <TextBlock Text="Every" Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="2,0,12,0" />
+              <ComboBox Width="84" ItemsSource="{Binding Schedule.IntervalOptions}" SelectedItem="{Binding Schedule.Interval}" AutomationProperties.Name="Interval" />
+              <TextBlock Text="{Binding Schedule.IntervalUnit}" Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="12,0,0,0" />
+              <StackPanel Orientation="Horizontal" Visibility="{Binding Schedule.ShowOffset, Converter={StaticResource BoolToVis}}">
+                <TextBlock Text="at minute" Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="16,0,12,0" />
+                <ComboBox Width="84" ItemsSource="{x:Static vm:ScheduleSectionViewModel.MinuteOptions}" ItemStringFormat="00" SelectedItem="{Binding Schedule.MinuteOffset}" AutomationProperties.Name="Minute past the hour" />
+              </StackPanel>
+            </StackPanel>
+
+            <StackPanel Visibility="{Binding Schedule.ShowWindow, Converter={StaticResource BoolToVis}}" Margin="0,14,0,0" Orientation="Horizontal">
+              <CheckBox Content="only between hours" IsChecked="{Binding Schedule.LimitHours}" ToolTip="Inclusive: from the start of the first hour to the end of the last one (9 and 17 means 9:00 to 17:59)." />
+              <StackPanel Orientation="Horizontal" Visibility="{Binding Schedule.ShowWindowPickers, Converter={StaticResource BoolToVis}}">
+                <ComboBox Width="76" Margin="14,0,0,0" ItemsSource="{x:Static vm:ScheduleSectionViewModel.HourOptions}" SelectedItem="{Binding Schedule.FromHour}" AutomationProperties.Name="From hour" />
+                <TextBlock Text="and" Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="12,0" />
+                <ComboBox Width="76" ItemsSource="{x:Static vm:ScheduleSectionViewModel.HourOptions}" SelectedItem="{Binding Schedule.ToHour}" AutomationProperties.Name="To hour" />
+              </StackPanel>
+            </StackPanel>
+          </StackPanel>
+
+          <!-- Simple view, for a schedule only cron can express -->
+          <Border Style="{StaticResource Card}" Padding="16,14" Visibility="{Binding Schedule.ShowSimpleReadOnly, Converter={StaticResource BoolToVis}}">
+            <StackPanel>
+              <TextBlock Text="{Binding Schedule.SimpleReadOnlyReason}" Foreground="{StaticResource YellowBrush}" TextWrapping="Wrap" LineHeight="19" />
+              <Button Content="Open the Cron view" Command="{Binding Schedule.EditInCronCommand}" HorizontalAlignment="Left" Margin="0,12,0,0" />
+            </StackPanel>
+          </Border>
+
+          <!-- Cron view -->
+          <StackPanel Visibility="{Binding Schedule.IsCronMode, Converter={StaticResource BoolToVis}}">
+            <TextBox Style="{StaticResource MonoTextBox}" Text="{Binding Schedule.CronText, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="NoWrap" MinHeight="86" VerticalContentAlignment="Top" Padding="10,8"
+                     FontSize="13" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Cron schedule" views:TextBoxHelper.Placeholder="0 9 * * 1-5" />
+            <Grid Margin="2,8,0,0">
+              <TextBlock Text="One schedule per line: minute hour day month weekday" Style="{StaticResource Small}" VerticalAlignment="Center" />
+              <TextBlock Text="cron syntax" Foreground="{StaticResource BlueBrush}" FontSize="12" HorizontalAlignment="Right" Cursor="Help" ToolTip="{Binding Schedule.CronHelpText}" />
+            </Grid>
+            <ItemsControl ItemsSource="{Binding Schedule.Diagnostics}" Focusable="False" Margin="0,4,0,0" />
+            <Button Content="{Binding Schedule.AlternativeText}" Command="{Binding Schedule.UseAlternativeCommand}" HorizontalAlignment="Left" Margin="0,12,0,0"
+                    Visibility="{Binding Schedule.HasAlternative, Converter={StaticResource BoolToVis}}" />
+          </StackPanel>
+
+          <!-- Skip holidays -->
+          <TextBlock Text="Skip holidays" Style="{StaticResource Small}" Margin="2,22,0,8" />
+          <ComboBox ItemsSource="{x:Static vm:ScheduleSectionViewModel.SkipOptions}" ItemTemplate="{StaticResource OptionTemplate}" SelectedValuePath="Value" SelectedValue="{Binding Schedule.SkipHolidays}" Width="320" HorizontalAlignment="Left"
+                    ToolTip="{Binding Schedule.HolidayTooltip}" AutomationProperties.Name="Skip holidays" />
+
+          <!-- Preview -->
+          <Border Style="{StaticResource Card}" Margin="0,22,0,0" Padding="20,18">
+            <StackPanel>
+              <TextBlock Text="{Binding Schedule.PreviewHeadline}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" LineHeight="24" AutomationProperties.Name="Schedule sentence">
+                <TextBlock.Style>
+                  <Style TargetType="TextBlock">
+                    <Setter Property="Foreground" Value="{StaticResource BlueBrush}" />
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding Schedule.PreviewIsValid}" Value="False"><Setter Property="Foreground" Value="{StaticResource DimBrush}" /></DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </TextBlock.Style>
+              </TextBlock>
+              <StackPanel Margin="0,16,0,0" Visibility="{Binding Schedule.ShowRunList, Converter={StaticResource BoolToVis}}">
+                <TextBlock Text="Next runs" Style="{StaticResource SectionLabel}" Margin="0,0,0,10" />
+                <ItemsControl ItemsSource="{Binding Schedule.PreviewRuns}" Focusable="False" />
+              </StackPanel>
+              <TextBlock Text="Runs each time you sign in to Windows." Style="{StaticResource Dim}" Margin="0,12,0,0" Visibility="{Binding Schedule.ShowAtSignIn, Converter={StaticResource BoolToVis}}" />
+              <ItemsControl ItemsSource="{Binding Schedule.PreviewNotes}" Focusable="False" Margin="0,6,0,0" Visibility="{Binding Schedule.HasPreviewNotes, Converter={StaticResource BoolToVis}}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding}" Foreground="{StaticResource YellowBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,6,0,0" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+
+          <!-- 4. Enabled -->
+          <StackPanel Orientation="Horizontal" Margin="2,24,0,4">
+            <ToggleButton Style="{StaticResource Switch}" IsChecked="{Binding Enabled}" Content="Enabled" AutomationProperties.Name="Enabled" />
+            <TextBlock Text="Switch off to keep the schedule without running it." Style="{StaticResource Small}" VerticalAlignment="Center" Margin="14,1,0,0" />
+          </StackPanel>
+          </StackPanel>
+        </StackPanel>
+
+        <!-- ===================== the runs ===================== -->
+        <Border x:Name="RunsPanel" Grid.Row="0" Grid.Column="2" Style="{StaticResource Card}" Padding="18,16" VerticalAlignment="Top"
+                Visibility="{Binding HasRunsPanel, Converter={StaticResource BoolToVis}}">
+          <StackPanel>
+            <Grid>
+              <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="Runs" Style="{StaticResource SectionLabel}" VerticalAlignment="Center" />
+                <StackPanel Orientation="Horizontal" Margin="14,0,0,0" VerticalAlignment="Center" Visibility="{Binding Runs.IsRunning, Converter={StaticResource BoolToVis}}" AutomationProperties.Name="Live: running now">
+                  <Ellipse x:Name="LiveDot" Width="8" Height="8" Fill="{StaticResource CyanBrush}" VerticalAlignment="Center">
+                    <Ellipse.Triggers>
+                      <EventTrigger RoutedEvent="Loaded">
+                        <BeginStoryboard>
+                          <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                            <DoubleAnimation Storyboard.TargetName="LiveDot" Storyboard.TargetProperty="Opacity" From="1" To="0.25" Duration="0:0:0.8" />
+                          </Storyboard>
+                        </BeginStoryboard>
+                      </EventTrigger>
+                    </Ellipse.Triggers>
+                  </Ellipse>
+                  <TextBlock Text="Live" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource CyanBrush}" Margin="7,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
+              </StackPanel>
+              <Button Content="Run now" Command="{Binding Runs.RunNowCommand}" HorizontalAlignment="Right" Padding="14,5" ToolTip="Start it now (Ctrl+R). Not available while it is running or until a change made outside Cadence is dealt with."
+                      AutomationProperties.Name="Run now" />
+            </Grid>
+            <TextBlock Text="{Binding Runs.RunFeedback}" TextWrapping="Wrap" Margin="2,12,0,0" LineHeight="18" Visibility="{Binding Runs.HasRunFeedback, Converter={StaticResource BoolToVis}}" AutomationProperties.AutomationId="RunFeedback">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource Dim}">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding Runs.RunFeedbackIsError}" Value="True"><Setter Property="Foreground" Value="{StaticResource RedBrush}" /></DataTrigger>
+                    <DataTrigger Binding="{Binding Runs.IsRunning}" Value="True"><Setter Property="Foreground" Value="{StaticResource CyanBrush}" /></DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
+
+            <!-- Task Scheduler could not start the job: the code said plainly (no guessed cause), above the numbers -->
+            <Border Margin="0,14,0,0" Padding="14,12" Background="#1F1A1D" BorderBrush="{StaticResource RedBrush}" BorderThickness="1" CornerRadius="6"
+                    Visibility="{Binding Runs.HasBlockedNotice, Converter={StaticResource BoolToVis}}">
+              <StackPanel>
+                <TextBlock Text="{Binding Runs.BlockedTitle}" FontWeight="SemiBold" Foreground="{StaticResource RedBrush}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Runs.BlockedBody}" Style="{StaticResource Dim}" TextWrapping="Wrap" LineHeight="19" Margin="0,7,0,0" />
+                <TextBlock Text="{Binding Runs.BlockedWhen}" Style="{StaticResource Small}" Margin="0,7,0,0" />
+                <Button Content="{x:Static vm:RunsSectionViewModel.BlockedLinkText}" Style="{StaticResource LinkButton}" Command="{Binding Runs.OpenSecurityCommand}" HorizontalAlignment="Left" Margin="0,8,0,0"
+                        Visibility="{Binding Runs.ShowSecurityLink, Converter={StaticResource BoolToVis}}" AutomationProperties.Name="Open Windows Security" />
+              </StackPanel>
+            </Border>
+            <Grid Margin="0,16,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <StackPanel ToolTip="{Binding Runs.AverageTooltip}">
+                <TextBlock Text="Average runtime" Style="{StaticResource Small}" />
+                <TextBlock Text="{Binding Runs.AverageText}" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" AutomationProperties.Name="Average runtime" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" ToolTip="{Binding Runs.SuccessTooltip}">
+                <TextBlock Text="Success" Style="{StaticResource Small}" />
+                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                  <TextBlock Text="{Binding Runs.SuccessText}" FontSize="15" FontWeight="SemiBold" AutomationProperties.Name="Success rate" />
+                  <TextBlock Text="{Binding Runs.SuccessDetail}" Style="{StaticResource Small}" VerticalAlignment="Bottom" Margin="8,0,0,4" />
+                </StackPanel>
+              </StackPanel>
+            </Grid>
+            <Border Height="1" Background="{StaticResource HighlightBrush}" Margin="0,16,0,10" />
+            <TextBlock Text="{Binding Runs.NoRunsText}" Style="{StaticResource Dim}" TextWrapping="Wrap" Margin="2,6,0,6" Visibility="{Binding Runs.NoRuns, Converter={StaticResource BoolToVis}}" />
+            <ItemsControl ItemsSource="{Binding Runs.RunRows}" Focusable="False" />
+            <Button Content="Show more" Style="{StaticResource LinkButton}" Command="{Binding Runs.ShowMoreCommand}" HorizontalAlignment="Left" Margin="10,8,0,0"
+                    Visibility="{Binding Runs.HasMoreRuns, Converter={StaticResource BoolToVis}}" />
+            <Button Content="Open log folder" Style="{StaticResource LinkButton}" Foreground="{StaticResource DimTextBrush}" Command="{Binding Runs.OpenLogFolderCommand}" HorizontalAlignment="Left"
+                    Margin="10,12,0,0" Visibility="{Binding Runs.HasRunRows, Converter={StaticResource BoolToVis}}" />
+          </StackPanel>
+        </Border>
+      </Grid>
+    </ScrollViewer>
+
+    <!-- ===================== footer ===================== -->
+    <Border Grid.Row="2" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource HighlightBrush}" BorderThickness="0,1,0,0" Padding="32,12">
+      <Grid MaxWidth="1180">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <StackPanel VerticalAlignment="Center" Margin="0,0,24,0">
+          <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Visibility="{Binding HasStatus, Converter={StaticResource BoolToVis}}" AutomationProperties.AutomationId="Status">
+            <TextBlock.Style>
+              <Style TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{StaticResource GreenBrush}" />
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding StatusIsError}" Value="True"><Setter Property="Foreground" Value="{StaticResource RedBrush}" /></DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </TextBlock.Style>
+          </TextBlock>
+          <TextBlock Text="{Binding FooterText}" TextWrapping="Wrap" AutomationProperties.AutomationId="ChangeSummary">
+            <TextBlock.Style>
+              <Style TargetType="TextBlock" BasedOn="{StaticResource Dim}">
+                <Setter Property="Visibility" Value="Visible" />
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding FooterIsError}" Value="True"><Setter Property="Foreground" Value="{StaticResource RedBrush}" /></DataTrigger>
+                  <DataTrigger Binding="{Binding HasStatus}" Value="True"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </TextBlock.Style>
+          </TextBlock>
+          <TextBlock Text="If a run is still going when the next one is due, Windows skips the new one." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,5,0,0" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+          <Button Content="Delete" Style="{StaticResource Danger}" Command="{Binding DeleteCommand}" Visibility="{Binding ShowFooterDelete, Converter={StaticResource BoolToVis}}" AutomationProperties.Name="Delete" />
+          <Button Content="Cancel" Command="{Binding BackCommand}" Margin="10,0,0,0" AutomationProperties.Name="Cancel" />
+          <Button Content="Save" Style="{StaticResource Primary}" Command="{Binding SaveCommand}" Margin="10,0,0,0" Padding="22,7" ToolTip="Save (Ctrl+S)" AutomationProperties.Name="Save" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- ===================== the ... menu, drawn inside the page (so it also shows in renders) ===================== -->
+    <Grid Grid.RowSpan="3" Visibility="{Binding IsMenuOpen, Converter={StaticResource BoolToVis}}">
+      <Border Background="#01000000">
+        <Border.InputBindings>
+          <MouseBinding MouseAction="LeftClick" Command="{Binding CloseMenuCommand}" />
+        </Border.InputBindings>
+      </Border>
+      <Grid x:Name="MenuLayer" Margin="32,0" MaxWidth="1180" VerticalAlignment="Top" HorizontalAlignment="Stretch">
+        <Border HorizontalAlignment="Right" Margin="0,54,0,0" MinWidth="268" Padding="6" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                CornerRadius="6" Effect="{StaticResource SoftShadow}" AutomationProperties.Name="Schedule menu items">
+          <StackPanel>
+            <Button Style="{StaticResource MenuRow}" Command="{Binding Runs.RunNowCommand}" AutomationProperties.Name="Run now">
+              <Grid MinWidth="230"><TextBlock Text="Run now" /><TextBlock Text="Ctrl+R" Style="{StaticResource Small}" HorizontalAlignment="Right" VerticalAlignment="Center" /></Grid>
+            </Button>
+            <Button Style="{StaticResource MenuRow}" Command="{Binding Notice.DuplicateCommand}" Content="Duplicate" AutomationProperties.Name="Duplicate" />
+            <!-- [P23] A save of its own; the check shows the lock is on. -->
+            <Button Style="{StaticResource MenuRow}" Command="{Binding Notice.ToggleAgentLockCommand}" AutomationProperties.Name="Don't let AI agents change this" AutomationProperties.AutomationId="AgentLockItem">
+              <Grid MinWidth="230">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{x:Static logic:AgentText.LockMenuItem}" />
+                <Path Grid.Column="1" Data="M0,4 L3.5,7.5 L10,0" Stroke="{StaticResource BlueBrush}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                      Width="10" Height="8" Stretch="None" Margin="16,0,0,0" VerticalAlignment="Center" Visibility="{Binding Notice.IsAgentLocked, Converter={StaticResource BoolToVis}}" />
+              </Grid>
+            </Button>
+            <Border Height="1" Background="{StaticResource HighlightBrush}" Margin="8,4" />
+            <Button Style="{StaticResource MenuRow}" Command="{Binding Notice.UntrackCommand}" Content="Stop managing (keep the task)" AutomationProperties.Name="Stop managing (keep the task)" />
+            <Button Style="{StaticResource MenuRow}" Command="{Binding OpenInTaskSchedulerCommand}" Content="Open in Task Scheduler" AutomationProperties.Name="Open in Task Scheduler" />
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Grid>
+  </Grid>
+</UserControl>

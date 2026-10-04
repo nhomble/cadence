@@ -1,0 +1,20 @@
+<UserControl x:Class="Cadence.App.UI.Views.ProgramDropZone" x:ClassModifier="internal"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             AutomationProperties.Name="Drop zone for a program, shortcut or script">
+  <!--
+    The empty part of the form where the program goes (PLAN 7.2 B.2). The window routes file drags (FileDrop on MainView) to
+    IsDragOver (through EditorViewModel.Program.IsDropHover) and drops to Program.UseFileAsync; the Browse button is the DataContext Program.BrowseCommand.
+  -->
+  <Grid Height="150">
+    <Rectangle x:Name="Dash" RadiusX="14" RadiusY="14" Stroke="{StaticResource BorderBrush}" StrokeThickness="1.5" StrokeDashArray="4 4" SnapsToDevicePixels="False"
+               Fill="{StaticResource SurfaceBrush}" />
+    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+      <Path x:Name="Icon" Data="M9,0 V15 M3,9 L9,15 L15,9 M0,19 H18" Stroke="{StaticResource DimTextBrush}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+            Width="18" Height="20" HorizontalAlignment="Center" />
+      <TextBlock x:Name="Title" Text="Drop a program, shortcut or script here" FontSize="13" HorizontalAlignment="Center" Margin="0,12,0,0" />
+      <Button Content="Browse…" Command="{Binding Program.BrowseCommand}" HorizontalAlignment="Center" Margin="0,12,0,0" Padding="18,7" AutomationProperties.Name="Browse" />
+      <TextBlock x:Name="Hint" Text="Works with .exe, .lnk, .bat, .cmd, .ps1, .py, .js, .vbs" Style="{StaticResource Small}" HorizontalAlignment="Center" Margin="0,12,0,0" />
+    </StackPanel>
+  </Grid>
+</UserControl>
